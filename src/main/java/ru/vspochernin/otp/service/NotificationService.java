@@ -39,9 +39,6 @@ public class NotificationService {
     @Value("${telegram.bot.token}")
     private String telegramBotToken;
 
-    @Value("${telegram.chat.id}")
-    private String telegramChatId;
-
     public void sendOtpCode(User user, String code, NotificationType type) {
         log.info("Sending OTP code via {} for user {}", type, user.getId());
         
@@ -83,15 +80,22 @@ public class NotificationService {
     }
 
     private void sendSms(String phone, String code) {
+        // TODO: Реализовать отправку SMS через SMPP эмулятор.
         log.info("Отправка SMS на номер {} с кодом {}", phone, code);
         log.info("SMS с кодом {} успешно отправлено на номер {}", code, phone);
     }
 
-    private void sendTelegram(String chatUsername, String code) {
-        String message = String.format("Пользователь %s, ваш код подтверждения: %s", chatUsername, code);
+    private void sendTelegram(String telegramUsername, String code) {
+        // Получаем chatId для пользователя.
+        String chatId = getChatId(telegramUsername);
+        if (chatId == null) {
+            throw new RuntimeException("Не удалось найти chatId для пользователя " + telegramUsername);
+        }
+
+        String message = String.format("Пользователь %s, ваш код подтверждения: %s", telegramUsername, code);
         String url = String.format("https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s",
                 telegramBotToken,
-                telegramChatId,
+                chatId,
                 urlEncode(message));
 
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
@@ -102,13 +106,32 @@ public class NotificationService {
                     log.error("Ошибка API Telegram. Код статуса: {}", statusCode);
                     throw new RuntimeException("Ошибка при отправке сообщения в Telegram");
                 } else {
-                    log.info("Сообщение в Telegram успешно отправлено пользователю {}", chatUsername);
+                    log.info("Сообщение в Telegram успешно отправлено пользователю {}", telegramUsername);
                 }
             }
         } catch (IOException e) {
             log.error("Ошибка при отправке сообщения в Telegram: {}", e.getMessage(), e);
             throw new RuntimeException("Не удалось отправить сообщение в Telegram", e);
         }
+    }
+
+    private String getChatId(String telegramUsername) {
+        String url = String.format("https://api.telegram.org/bot%s/getUpdates", telegramBotToken);
+        
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+            HttpGet request = new HttpGet(url);
+            try (CloseableHttpResponse response = httpClient.execute(request)) {
+                if (response.getStatusLine().getStatusCode() == 200) {
+                    // Парсим JSON ответ и ищем chatId для указанного username.
+                    String responseBody = new String(response.getEntity().getContent().readAllBytes());
+                    // TODO: Реализовать парсинг JSON и поиск chatId по username
+                    return telegramUsername;
+                }
+            }
+        } catch (IOException e) {
+            log.error("Ошибка при получении chatId: {}", e.getMessage(), e);
+        }
+        return null;
     }
 
     private void saveToFile(String code) {
