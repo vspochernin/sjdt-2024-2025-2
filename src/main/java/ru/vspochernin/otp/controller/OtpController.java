@@ -23,7 +23,10 @@ public class OtpController {
             @Valid @RequestBody OtpRequest request,
             Authentication authentication) {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        OtpCode otpCode = otpService.generateOtpCode(userDetails.getUser(), request.getOperationId());
+        OtpCode otpCode = otpService.generateOtpCode(
+                userDetails.getUser().getId().toString(), 
+                request.getOperationId(),
+                request.getNotificationType());
         return ResponseEntity.ok(otpCode);
     }
 

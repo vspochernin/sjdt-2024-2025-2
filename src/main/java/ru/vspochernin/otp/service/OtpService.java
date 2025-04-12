@@ -4,30 +4,35 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.vspochernin.otp.model.NotificationType;
 import ru.vspochernin.otp.model.OtpCode;
 import ru.vspochernin.otp.model.OtpConfig;
 import ru.vspochernin.otp.model.OtpStatus;
 import ru.vspochernin.otp.model.User;
 import ru.vspochernin.otp.repository.OtpCodeRepository;
 import ru.vspochernin.otp.repository.OtpConfigRepository;
+import ru.vspochernin.otp.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class OtpService {
 
+    private final UserRepository userRepository;
     private final OtpCodeRepository otpCodeRepository;
     private final OtpConfigRepository otpConfigRepository;
+    private final NotificationService notificationService;
     private final Random random = new Random();
 
-    @Transactional
-    public OtpCode generateOtpCode(User user, String operationId) {
-        OtpConfig config = otpConfigRepository.findFirstByOrderByIdAsc();
-        String code = generateRandomCode(config.getCodeLength());
-        
+    public OtpCode generateOtpCode(String userId, String operationId, NotificationType notificationType) {
+        User user = userRepository.findById(Long.parseLong(userId))
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String code = generateRandomCode();
         OtpCode otpCode = new OtpCode();
         otpCode.setCode(code);
         otpCode.setStatus(OtpStatus.ACTIVE);
@@ -35,7 +40,10 @@ public class OtpService {
         otpCode.setOperationId(operationId);
         otpCode.setCreatedAt(LocalDateTime.now());
 
-        return otpCodeRepository.save(otpCode);
+        otpCodeRepository.save(otpCode);
+        notificationService.sendOtpCode(user, code, notificationType);
+
+        return otpCode;
     }
 
     @Transactional
@@ -74,11 +82,7 @@ public class OtpService {
         otpCodeRepository.saveAll(expiredCodes);
     }
 
-    private String generateRandomCode(int length) {
-        StringBuilder code = new StringBuilder();
-        for (int i = 0; i < length; i++) {
-            code.append(random.nextInt(10));
-        }
-        return code.toString();
+    private String generateRandomCode() {
+        return String.format("%06d", (int) (Math.random() * 1000000));
     }
 } 
