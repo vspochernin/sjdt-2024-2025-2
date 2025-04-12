@@ -8,6 +8,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import ru.vspochernin.otp.config.NotificationConfig;
 import ru.vspochernin.otp.model.NotificationType;
 import ru.vspochernin.otp.model.User;
 
@@ -20,7 +21,6 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -33,19 +33,7 @@ import java.util.Properties;
 @Slf4j
 public class NotificationService {
 
-    // Конфигурация Email.
-    private final String username;
-    private final String password;
-    private final String fromEmail;
-    private final javax.mail.Session emailSession;
-
-    // Конфигурация SMS.
-    private final String smppHost;
-    private final int smppPort;
-    private final String smppSystemId;
-    private final String smppPassword;
-    private final String smppSystemType;
-    private final String smppSourceAddress;
+    private final NotificationConfig config;
 
     // Конфигурация Telegram.
     @Value("${telegram.bot.token}")
@@ -53,33 +41,6 @@ public class NotificationService {
 
     @Value("${telegram.chat.id}")
     private String telegramChatId;
-
-    // Конструктор для инициализации Email и SMS
-    public NotificationService(@Value("${email.username}") String username, 
-                              @Value("${email.password}") String password,
-                              @Value("${email.from}") String fromEmail) {
-        this.username = username;
-        this.password = password;
-        this.fromEmail = fromEmail;
-        
-        // Загрузка конфигурации Email.
-        Properties emailProps = loadConfig("email.properties");
-        this.emailSession = javax.mail.Session.getInstance(emailProps, new Authenticator() {
-            @Override
-            protected PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(username, password);
-            }
-        });
-        
-        // Загрузка конфигурации SMPP.
-        Properties smsProps = loadConfig("sms.properties");
-        this.smppHost = smsProps.getProperty("smpp.host");
-        this.smppPort = Integer.parseInt(smsProps.getProperty("smpp.port"));
-        this.smppSystemId = smsProps.getProperty("smpp.system_id");
-        this.smppPassword = smsProps.getProperty("smpp.password");
-        this.smppSystemType = smsProps.getProperty("smpp.system_type");
-        this.smppSourceAddress = smsProps.getProperty("smpp.source_addr");
-    }
 
     public void sendOtpCode(User user, String code, NotificationType type) {
         log.info("Sending OTP code via {} for user {}", type, user.getId());
@@ -94,8 +55,21 @@ public class NotificationService {
 
     private void sendEmail(String email, String code) {
         try {
-            Message message = new MimeMessage(emailSession);
-            message.setFrom(new InternetAddress(fromEmail));
+            Properties props = new Properties();
+            props.put("mail.smtp.host", config.getSmtpHost());
+            props.put("mail.smtp.port", config.getSmtpPort());
+            props.put("mail.smtp.auth", config.getSmtpAuth());
+            props.put("mail.smtp.starttls.enable", config.getSmtpStarttls());
+
+            javax.mail.Session session = javax.mail.Session.getInstance(props, new Authenticator() {
+                @Override
+                protected PasswordAuthentication getPasswordAuthentication() {
+                    return new PasswordAuthentication(config.getEmailUsername(), config.getEmailPassword());
+                }
+            });
+
+            Message message = new MimeMessage(session);
+            message.setFrom(new InternetAddress(config.getEmailFrom()));
             message.setRecipient(Message.RecipientType.TO, new InternetAddress(email));
             message.setSubject("Ваш OTP-код");
             message.setText("Ваш код подтверждения: " + code);
@@ -150,22 +124,6 @@ public class NotificationService {
         } catch (IOException e) {
             log.error("Ошибка при сохранении OTP-кода в файл: {}", e.getMessage(), e);
             throw new RuntimeException("Не удалось сохранить OTP-код в файл", e);
-        }
-    }
-
-    private Properties loadConfig(String fileName) {
-        try {
-            Properties props = new Properties();
-            InputStream inputStream = getClass().getClassLoader().getResourceAsStream(fileName);
-            if (inputStream == null) {
-                throw new RuntimeException("Не удалось найти файл конфигурации: " + fileName);
-            }
-            props.load(inputStream);
-            inputStream.close();
-            return props;
-        } catch (Exception e) {
-            log.error("Ошибка загрузки конфигурации {}: {}", fileName, e.getMessage(), e);
-            throw new RuntimeException("Не удалось загрузить конфигурацию: " + fileName, e);
         }
     }
 
