@@ -10,7 +10,6 @@ import ru.vspochernin.otp.repository.OtpConfigRepository;
 import ru.vspochernin.otp.repository.UserRepository;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +33,6 @@ public class AdminService {
     @Transactional
     public void deleteUser(String userId) {
         log.info("Удаление пользователя с ID: {}", userId);
-        userRepository.deleteById(UUID.fromString(userId));
+        userRepository.deleteById(Long.parseLong(userId));
     }
 } 
