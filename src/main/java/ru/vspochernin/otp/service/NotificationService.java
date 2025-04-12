@@ -6,6 +6,12 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.smpp.Connection;
+import org.smpp.Session;
+import org.smpp.TCPIPConnection;
+import org.smpp.pdu.BindResponse;
+import org.smpp.pdu.BindTransmitter;
+import org.smpp.pdu.SubmitSM;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import ru.vspochernin.otp.config.NotificationConfig;
@@ -28,6 +34,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -41,7 +50,7 @@ public class NotificationService {
 
     public void sendOtpCode(User user, String code, NotificationType type) {
         log.info("Sending OTP code via {} for user {}", type, user.getId());
-        
+
         switch (type) {
             case EMAIL -> sendEmail(user.getEmail(), code);
             case SMS -> sendSms(user.getPhone(), code);
@@ -80,9 +89,50 @@ public class NotificationService {
     }
 
     private void sendSms(String phone, String code) {
-        // TODO: Реализовать отправку SMS через SMPP эмулятор.
-        log.info("Отправка SMS на номер {} с кодом {}", phone, code);
-        log.info("SMS с кодом {} успешно отправлено на номер {}", code, phone);
+        Connection connection;
+        Session session;
+
+        try {
+            Properties props = new Properties();
+            props.load(getClass().getClassLoader().getResourceAsStream("sms.properties"));
+
+            String host = props.getProperty("smpp.host");
+            int port = Integer.parseInt(props.getProperty("smpp.port"));
+            String systemId = props.getProperty("smpp.system_id");
+            String password = props.getProperty("smpp.password");
+            String systemType = props.getProperty("smpp.system_type");
+            String sourceAddr = props.getProperty("smpp.source_addr");
+
+            // 1. Установка соединения
+            connection = new TCPIPConnection(host, port);
+            session = new Session(connection);
+
+            // 2. Подготовка Bind Request
+            BindTransmitter bindRequest = new BindTransmitter();
+            bindRequest.setSystemId(systemId);
+            bindRequest.setPassword(password);
+            bindRequest.setSystemType(systemType);
+            bindRequest.setInterfaceVersion((byte) 0x34); // SMPP v3.4
+            bindRequest.setAddressRange(sourceAddr);
+
+            // 3. Выполнение привязки
+            BindResponse bindResponse = session.bind(bindRequest);
+            if (bindResponse.getCommandStatus() != 0) {
+                throw new Exception("Bind failed: " + bindResponse.getCommandStatus());
+            }
+
+            // 4. Отправка сообщения
+            SubmitSM submitSM = new SubmitSM();
+            submitSM.setSourceAddr(sourceAddr);
+            submitSM.setDestAddr(phone);
+            submitSM.setShortMessage("Your code: " + code);
+
+            session.submit(submitSM);
+            log.info("SMS с кодом {} успешно отправлено на номер {}", code, phone);
+        } catch (Exception e) {
+            log.error("Ошибка при отправке SMS: {}", e.getMessage(), e);
+            throw new RuntimeException("Не удалось отправить SMS", e);
+        }
     }
 
     private void sendTelegram(String telegramUsername, String code) {
@@ -117,15 +167,32 @@ public class NotificationService {
 
     private String getChatId(String telegramUsername) {
         String url = String.format("https://api.telegram.org/bot%s/getUpdates", telegramBotToken);
-        
+
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             HttpGet request = new HttpGet(url);
             try (CloseableHttpResponse response = httpClient.execute(request)) {
                 if (response.getStatusLine().getStatusCode() == 200) {
-                    // Парсим JSON ответ и ищем chatId для указанного username.
                     String responseBody = new String(response.getEntity().getContent().readAllBytes());
-                    // TODO: Реализовать парсинг JSON и поиск chatId по username
-                    return telegramUsername;
+
+                    // Парсим JSON ответ
+                    ObjectMapper mapper = new ObjectMapper();
+                    JsonNode root = mapper.readTree(responseBody);
+
+                    if (root.has("result")) {
+                        JsonNode result = root.get("result");
+                        for (JsonNode update : result) {
+                            if (update.has("message")) {
+                                JsonNode message = update.get("message");
+                                if (message.has("from") && message.has("chat")) {
+                                    JsonNode from = message.get("from");
+                                    if (from.has("username") &&
+                                        from.get("username").asText().equals(telegramUsername)) {
+                                        return message.get("chat").get("id").asText();
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         } catch (IOException e) {
