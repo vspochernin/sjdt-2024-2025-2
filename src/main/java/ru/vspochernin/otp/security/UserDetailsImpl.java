@@ -23,6 +23,7 @@ public class UserDetailsImpl implements UserDetails {
     @JsonIgnore
     private String password;
     private Collection<? extends GrantedAuthority> authorities;
+    private User user;
 
     public static UserDetailsImpl build(User user) {
         List<GrantedAuthority> authorities = List.of(
@@ -34,7 +35,8 @@ public class UserDetailsImpl implements UserDetails {
                 user.getUsername(),
                 user.getEmail(),
                 user.getPassword(),
-                authorities
+                authorities,
+                user
         );
     }
 
