@@ -27,7 +27,7 @@ public class AdminService {
 
     public List<User> getAllUsers() {
         log.info("Получение списка всех пользователей");
-        return userRepository.findAllByRoleNot("ADMIN");
+        return userRepository.findAll();
     }
 
     @Transactional

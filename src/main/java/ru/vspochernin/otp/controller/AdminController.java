@@ -6,6 +6,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import ru.vspochernin.otp.model.OtpConfig;
 import ru.vspochernin.otp.model.User;
+import ru.vspochernin.otp.model.UserRole;
 import ru.vspochernin.otp.service.AdminService;
 
 import java.util.List;
@@ -19,7 +20,7 @@ public class AdminController {
     private final AdminService adminService;
 
     @PutMapping("/config")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public OtpConfig updateOtpConfig(@RequestBody OtpConfig config) {
         log.info("Admin запросил обновление конфигурации OTP: {}", config);
         config.setId(1L);
@@ -29,16 +30,19 @@ public class AdminController {
     }
 
     @GetMapping("/users")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public List<User> getAllUsers() {
         log.info("Admin запросил список всех пользователей");
-        List<User> users = adminService.getAllUsers();
+        List<User> users = adminService.getAllUsers()
+                .stream()
+                .filter(it -> !it.getRole().equals(UserRole.ADMIN))
+                .toList();
         log.info("Найдено {} пользователей", users.size());
         return users;
     }
 
     @DeleteMapping("/users/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public void deleteUser(@PathVariable String userId) {
         log.info("Admin запросил удаление пользователя с ID: {}", userId);
         adminService.deleteUser(userId);
