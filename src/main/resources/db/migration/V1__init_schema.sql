@@ -14,7 +14,7 @@ CREATE TABLE otp_codes (
     id BIGSERIAL PRIMARY KEY,
     code VARCHAR(255) NOT NULL,
     status VARCHAR(20) NOT NULL,
-    user_id BIGINT NOT NULL REFERENCES users(id),
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     operation_id VARCHAR(255) NOT NULL,
     created_at TIMESTAMP NOT NULL
 );

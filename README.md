@@ -60,8 +60,15 @@ curl -X POST http://localhost:8080/api/otp/validate \
   -d '{"code":"OPT_CODE","operationId":"123"}'
 ```
 
-### Административные функции
-1. Обновление конфигурации OTP:
+### Функции администратора
+1. Регистрация администратора:
+```bash
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin","password": "password","email": "test@gmail.com","telegram": "telegram","phone": "phone","role": "ADMIN"}'
+```
+
+2. Обновление конфигурации OTP:
 ```bash
 curl -X PUT http://localhost:8080/api/admin/config \
   -H "Content-Type: application/json" \
@@ -69,13 +76,13 @@ curl -X PUT http://localhost:8080/api/admin/config \
   -d '{"codeLength":6,"expirationTimeSeconds":5}'
 ```
 
-2. Получение списка пользователей:
+3. Получение списка пользователей:
 ```bash
 curl -X GET http://localhost:8080/api/admin/users \
   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
 ```
 
-3. Удаление пользователя:
+4. Удаление пользователя:
 ```bash
 curl -X DELETE http://localhost:8080/api/admin/users/USER_ID \
   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
