@@ -21,11 +21,11 @@ public class AuthService {
     @Transactional
     public User register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new UsernameAlreadyExistsException("Username is already taken!");
+            throw new UsernameAlreadyExistsException("Такой username уже существует!");
         }
 
         if (request.getRole() == UserRole.ADMIN && userRepository.existsByRole(UserRole.ADMIN)) {
-            throw new AdminAlreadyExistsException("Admin already exists!");
+            throw new AdminAlreadyExistsException("Администратор уже существует!");
         }
 
         User user = new User();
