@@ -27,4 +27,4 @@ CREATE TABLE otp_config (
 );
 
 -- Инициализация конфигурации OTP.
-INSERT INTO otp_config (code_length, expiration_time_seconds) VALUES (6, 300);
+INSERT INTO otp_config (id, code_length, expiration_time_seconds) VALUES (1, 6, 300);

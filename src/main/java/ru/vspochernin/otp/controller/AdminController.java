@@ -22,6 +22,7 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public OtpConfig updateOtpConfig(@RequestBody OtpConfig config) {
         log.info("Admin запросил обновление конфигурации OTP: {}", config);
+        config.setId(1L);
         OtpConfig updatedConfig = adminService.updateOtpConfig(config);
         log.info("Конфигурация OTP успешно обновлена: {}", updatedConfig);
         return updatedConfig;

@@ -33,7 +33,7 @@ mvn spring-boot:run
 ```bash
 curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"username":"user","password":"password"}'
+  -d '{"username": "user","password": "password","email": "test@gmail.com","telegram": "telegram","phone": "phone","role": "USER"}'
 ```
 
 2. Аутентификация:
@@ -44,11 +44,11 @@ curl -X POST http://localhost:8080/api/auth/login \
 ```
 
 ### Генерация и валидация OTP-кодов
-1. Генерация OTP-кода (на примере отправки в файл):
+1. Генерация OTP-кода (на примере отправки кода в файл):
 ```bash
 curl -X POST http://localhost:8080/api/otp/generate \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Authorization: Bearer USER_JWT_TOKEN" \
   -d '{"operationId":"123","notificationType":"FILE"}'
 ```
 
@@ -56,7 +56,8 @@ curl -X POST http://localhost:8080/api/otp/generate \
 ```bash
 curl -X POST http://localhost:8080/api/otp/validate \
   -H "Content-Type: application/json" \
-  -d '{"code":"123456","operationId":"123"}'
+  -H "Authorization: Bearer USER_JWT_TOKEN" \
+  -d '{"code":"OPT_CODE","operationId":"123"}'
 ```
 
 ### Административные функции
@@ -65,7 +66,7 @@ curl -X POST http://localhost:8080/api/otp/validate \
 curl -X PUT http://localhost:8080/api/admin/config \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
-  -d '{"codeLength":6,"expirationMinutes":5}'
+  -d '{"codeLength":6,"expirationTimeSeconds":5}'
 ```
 
 2. Получение списка пользователей:
@@ -82,7 +83,7 @@ curl -X DELETE http://localhost:8080/api/admin/users/USER_ID \
 
 ## Тестирование
 
-Для выполнения тестирования достаточно запустить проект и сымитировать работу сервиса. Удобнее всего это делать через Postman.
+Для выполнения тестирования достаточно запустить проект и вызывать ручки сервиса. Удобнее всего это делать через Postman.
 
 ## Выполнение критериев
 
