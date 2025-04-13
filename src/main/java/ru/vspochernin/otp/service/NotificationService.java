@@ -49,7 +49,7 @@ public class NotificationService {
     private String telegramBotToken;
 
     public void sendOtpCode(User user, String code, NotificationType type) {
-        log.info("Sending OTP code via {} for user {}", type, user.getId());
+        log.info("Отправка OTP кода через {} для пользователя {}", type, user.getId());
 
         switch (type) {
             case EMAIL -> sendEmail(user.getEmail(), code);
@@ -93,39 +93,36 @@ public class NotificationService {
         Session session;
 
         try {
-            Properties props = new Properties();
-            props.load(getClass().getClassLoader().getResourceAsStream("sms.properties"));
+            String host = config.getSmppHost();
+            int port = Integer.parseInt(config.getSmppPort());
+            String systemId = config.getSmppSystemId();
+            String password = config.getSmppPassword();
+            String systemType = config.getSmppSystemType();
+            String sourceAddr = config.getSmppSourceAddress();
 
-            String host = props.getProperty("smpp.host");
-            int port = Integer.parseInt(props.getProperty("smpp.port"));
-            String systemId = props.getProperty("smpp.system_id");
-            String password = props.getProperty("smpp.password");
-            String systemType = props.getProperty("smpp.system_type");
-            String sourceAddr = props.getProperty("smpp.source_addr");
-
-            // 1. Установка соединения
+            // 1. Установка соединения.
             connection = new TCPIPConnection(host, port);
             session = new Session(connection);
 
-            // 2. Подготовка Bind Request
+            // 2. Подготовка Bind Request.
             BindTransmitter bindRequest = new BindTransmitter();
             bindRequest.setSystemId(systemId);
             bindRequest.setPassword(password);
             bindRequest.setSystemType(systemType);
-            bindRequest.setInterfaceVersion((byte) 0x34); // SMPP v3.4
+            bindRequest.setInterfaceVersion((byte) 0x34); // SMPP v3.4.
             bindRequest.setAddressRange(sourceAddr);
 
-            // 3. Выполнение привязки
+            // 3. Выполнение привязки.
             BindResponse bindResponse = session.bind(bindRequest);
             if (bindResponse.getCommandStatus() != 0) {
-                throw new Exception("Bind failed: " + bindResponse.getCommandStatus());
+                throw new Exception("Ошибка привязки: " + bindResponse.getCommandStatus());
             }
 
             // 4. Отправка сообщения
             SubmitSM submitSM = new SubmitSM();
             submitSM.setSourceAddr(sourceAddr);
             submitSM.setDestAddr(phone);
-            submitSM.setShortMessage("Your code: " + code);
+            submitSM.setShortMessage("Ваш код: " + code);
 
             session.submit(submitSM);
             log.info("SMS с кодом {} успешно отправлено на номер {}", code, phone);
@@ -174,7 +171,7 @@ public class NotificationService {
                 if (response.getStatusLine().getStatusCode() == 200) {
                     String responseBody = new String(response.getEntity().getContent().readAllBytes());
 
-                    // Парсим JSON ответ
+                    // Парсим JSON ответ.
                     ObjectMapper mapper = new ObjectMapper();
                     JsonNode root = mapper.readTree(responseBody);
 
@@ -208,7 +205,7 @@ public class NotificationService {
                 Files.createFile(path);
             }
             try (FileWriter writer = new FileWriter(path.toFile(), true)) {
-                writer.write(String.format("OTP Code: %s, Time: %s%n", code, java.time.LocalDateTime.now()));
+                writer.write(String.format("OTP код: %s, Время: %s%n", code, java.time.LocalDateTime.now()));
                 log.info("OTP-код успешно сохранен в файл {}", path.toAbsolutePath());
             }
         } catch (IOException e) {

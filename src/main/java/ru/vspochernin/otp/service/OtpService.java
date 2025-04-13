@@ -30,7 +30,7 @@ public class OtpService {
 
     public OtpCode generateOtpCode(String userId, String operationId, NotificationType notificationType) {
         User user = userRepository.findById(Long.parseLong(userId))
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
 
         String code = generateRandomCode();
         OtpCode otpCode = new OtpCode();
